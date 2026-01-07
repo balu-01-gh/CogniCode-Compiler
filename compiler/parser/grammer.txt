@@ -1,0 +1,22 @@
+program     → statement* EOF
+
+statement   → var_decl
+            | assign_stmt
+            | print_stmt
+
+var_decl    → type IDENTIFIER ASSIGN expression SEMICOLON
+assign_stmt → IDENTIFIER ASSIGN expression SEMICOLON
+print_stmt  → PRINT LPAREN expression RPAREN SEMICOLON
+
+type        → INT | FLOAT | BOOL | CHAR | STRING
+
+expression  → term ((PLUS | MINUS) term)*
+term        → factor ((MUL | DIV | MOD) factor)*
+factor      → INT_LIT
+            | FLOAT_LIT
+            | STRING_LIT
+            | CHAR_LIT
+            | TRUE
+            | FALSE
+            | IDENTIFIER
+            | LPAREN expression RPAREN

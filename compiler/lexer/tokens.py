@@ -9,21 +9,46 @@ CHAR    = "CHAR"
 STRING  = "STRING"
 VOID    = "VOID"
 
-# Other keywords
-PRINT   = "PRINT"
-TRUE    = "TRUE"
-FALSE   = "FALSE"
+# =========================
+# CONTROL FLOW KEYWORDS
+# =========================
+
+IF       = "IF"
+ELSE     = "ELSE"
+WHILE    = "WHILE"
+BREAK    = "BREAK"
+CONTINUE = "CONTINUE"
+RETURN   = "RETURN"   # 🔥 REQUIRED FOR STAGE 13
+
+# =========================
+# OTHER KEYWORDS / LITERALS
+# =========================
+
+PRINT = "PRINT"
+TRUE  = "TRUE"
+FALSE = "FALSE"
 
 KEYWORDS = {
+    # datatypes
     "int": INT,
     "float": FLOAT,
     "bool": BOOL,
     "char": CHAR,
     "string": STRING,
     "void": VOID,
+
+    # control flow
+    "if": IF,
+    "else": ELSE,
+    "while": WHILE,
+    "break": BREAK,
+    "continue": CONTINUE,
+    "return": RETURN,
+
+    # built-ins / literals
     "print": PRINT,
     "true": TRUE,
-    "false": FALSE
+    "false": FALSE,
 }
 
 # =========================

@@ -3,6 +3,15 @@ program     → statement* EOF
 statement   → var_decl
             | assign_stmt
             | print_stmt
+            | if_stmt
+            | while_stmt
+
+if_stmt     → IF LPAREN expression RPAREN block
+              (ELSE block)?
+
+while_stmt  → WHILE LPAREN expression RPAREN block
+
+block       → LBRACE statement* RBRACE
 
 var_decl    → type IDENTIFIER ASSIGN expression SEMICOLON
 assign_stmt → IDENTIFIER ASSIGN expression SEMICOLON
@@ -10,9 +19,21 @@ print_stmt  → PRINT LPAREN expression RPAREN SEMICOLON
 
 type        → INT | FLOAT | BOOL | CHAR | STRING
 
-expression  → term ((PLUS | MINUS) term)*
-term        → factor ((MUL | DIV | MOD) factor)*
-factor      → INT_LIT
+expression  → logical_or
+
+logical_or  → logical_and (OR logical_and)*
+logical_and → equality (AND equality)*
+
+equality    → comparison ((EQ | NEQ) comparison)*
+comparison  → additive ((LT | GT | LE | GE) additive)*
+
+additive    → multiplicative ((PLUS | MINUS) multiplicative)*
+multiplicative → unary ((MUL | DIV | MOD) unary)*
+
+unary       → (NOT | MINUS) unary
+            | primary
+
+primary     → INT_LIT
             | FLOAT_LIT
             | STRING_LIT
             | CHAR_LIT

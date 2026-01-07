@@ -1,68 +1,178 @@
 # compiler/semantic/analyzer.py
 
 from compiler.parser.ast_nodes import *
-from compiler.semantic.symbol_table import SymbolTable
+from compiler.errors import CompilerError
+
 
 class SemanticAnalyzer:
     def __init__(self):
-        self.symbol_table = SymbolTable()
+        self.variables = [{}]     # stack of scopes
+        self.functions = {}       # function table
+        self.current_function = None
 
+    # --------------------
+    # Dispatcher
+    # --------------------
     def analyze(self, node):
-        method_name = f"visit_{type(node).__name__}"
-        visitor = getattr(self, method_name, self.generic_visit)
+        method = f"visit_{type(node).__name__}"
+        visitor = getattr(self, method, self.generic_visit)
         return visitor(node)
 
     def generic_visit(self, node):
-        raise Exception(f"No semantic rule for {type(node).__name__}")
+        raise CompilerError(
+            f"No semantic rule for {type(node).__name__}",
+            line=getattr(node, "line", None)
+        )
 
-    # ------------------------
-    # AST Visitors
-    # ------------------------
+    # --------------------
+    # Program / Block
+    # --------------------
     def visit_Program(self, node):
         for stmt in node.statements:
             self.analyze(stmt)
 
-    def visit_VarDecl(self, node):
-        expr_type = self.analyze(node.expr)
-        self.symbol_table.declare(node.name, node.var_type)
+    def visit_Block(self, node):
+        self.variables.append({})
+        for stmt in node.statements:
+            self.analyze(stmt)
+        self.variables.pop()
 
-        if expr_type != node.var_type:
-            raise Exception(
-                f"Type Error: Cannot assign {expr_type} to {node.var_type}"
+    # --------------------
+    # Variables
+    # --------------------
+    def visit_VarDecl(self, node):
+        scope = self.variables[-1]
+
+        if node.name in scope:
+            raise CompilerError(
+                f"Variable '{node.name}' already declared",
+                node.line
             )
+
+        self.analyze(node.expr)
+        scope[node.name] = node.var_type
 
     def visit_Assign(self, node):
-        var_type = self.symbol_table.lookup(node.name)
-        expr_type = self.analyze(node.expr)
+        for scope in reversed(self.variables):
+            if node.name in scope:
+                self.analyze(node.expr)
+                return
 
-        if var_type != expr_type:
-            raise Exception(
-                f"Type Error: Cannot assign {expr_type} to {var_type}"
-            )
+        raise CompilerError(
+            f"Variable '{node.name}' not declared",
+            node.line
+        )
 
+    def visit_Var(self, node):
+        for scope in reversed(self.variables):
+            if node.name in scope:
+                return
+
+        raise CompilerError(
+            f"Variable '{node.name}' not declared",
+            node.line
+        )
+
+    # --------------------
+    # Print
+    # --------------------
     def visit_Print(self, node):
         self.analyze(node.expr)
 
-    def visit_BinOp(self, node):
-        left_type = self.analyze(node.left)
-        right_type = self.analyze(node.right)
+    # --------------------
+    # If / While
+    # --------------------
+    def visit_If(self, node):
+        self.analyze(node.condition)
+        self.analyze(node.then_block)
+        if node.else_block:
+            self.analyze(node.else_block)
 
-        if left_type != right_type:
-            raise Exception(
-                f"Type Error: {left_type} and {right_type} mismatch"
+    def visit_While(self, node):
+        self.analyze(node.condition)
+        self.analyze(node.body)
+
+    # --------------------
+    # 🔥 Function Declaration
+    # --------------------
+    def visit_FunctionDecl(self, node):
+        if node.name in self.functions:
+            raise CompilerError(
+                f"Function '{node.name}' already defined",
+                node.line
             )
 
-        return left_type
+        # store function signature
+        self.functions[node.name] = {
+            "return_type": node.return_type,
+            "params": node.params
+        }
+
+        # enter function scope
+        self.variables.append({})
+        self.current_function = node
+
+        # register parameters as variables
+        for ptype, pname in node.params:
+            if pname in self.variables[-1]:
+                raise CompilerError(
+                    f"Duplicate parameter '{pname}'",
+                    node.line
+                )
+            self.variables[-1][pname] = ptype
+
+        self.analyze(node.body)
+
+        self.variables.pop()
+        self.current_function = None
+
+    # --------------------
+    # 🔥 Function Call
+    # --------------------
+    def visit_FunctionCall(self, node):
+        if node.name not in self.functions:
+            raise CompilerError(
+                f"Function '{node.name}' not defined",
+                node.line
+            )
+
+        expected = self.functions[node.name]["params"]
+
+        if len(node.args) != len(expected):
+            raise CompilerError(
+                f"Function '{node.name}' expects {len(expected)} arguments",
+                node.line
+            )
+
+        for arg in node.args:
+            self.analyze(arg)
+
+    # --------------------
+    # 🔥 Return
+    # --------------------
+    def visit_Return(self, node):
+        if self.current_function is None:
+            raise CompilerError(
+                "Return outside function",
+                node.line
+            )
+        self.analyze(node.expr)
+
+    # --------------------
+    # Expressions
+    # --------------------
+    def visit_BinOp(self, node):
+        self.analyze(node.left)
+        self.analyze(node.right)
+
+    def visit_UnaryOp(self, node):
+        self.analyze(node.expr)
 
     def visit_Literal(self, node):
-        if isinstance(node.value, int):
-            return "INT"
-        if isinstance(node.value, float):
-            return "FLOAT"
-        if isinstance(node.value, str):
-            return "STRING"
-        if isinstance(node.value, bool):
-            return "BOOL"
+        pass
 
-    def visit_Var(self, node):
-        return self.symbol_table.lookup(node.name)
+    def visit_Break(self, node):
+        pass
+
+    def visit_Continue(self, node):
+        pass
